@@ -1,5 +1,8 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <SoftwareSerial.h>  //usado para bluetooth JDY-23  
+
+SoftwareSerial SerialBT(3, 2); // RX, TX de arduino y en JDY-23 al reves
 
 Servo servo1;
 Servo servo2;
@@ -43,6 +46,9 @@ const long ledDuration = 3000;           // Duración del LED encendido en ms (3
 const long ledDuration2 = 5000;           // Duración del LED rojo en ms (5 segundos)
 boolean ledState = false;               // Estado del LED
 boolean ledState2 = false;               // Estado del LED
+
+int estado=0;
+int ultimoValorBtn1 = 0, ultimoValorBtn2 = 0;
 
 void actividad1(){
   unsigned long currentMillis2 = millis();  // Obtiene el tiempo actual
@@ -98,6 +104,7 @@ void actividad2(){
 }
 void setup() {
   // put your setup code here, to run once:
+  SerialBT.begin(9600); // Comunicación con el módulo Bluetooth
   Serial.begin(9600);
   servo1.attach(pinservo1);
   servo2.attach(pinservo2);
@@ -117,16 +124,26 @@ void loop() {
   unsigned long currentMillisl2 = millis();  // Obtiene el tiempo actual      
   valorbtn1= digitalRead(pinbtn1);
   valorbtn2= digitalRead(pinbtn2);
-  if(valorbtn1==1){
-    encendidoAPP=true;
-    delay(100);
+  if(valorbtn1==1 && ultimoValorBtn1 == 0){
+    if (estado == 0) { // Solo cambia si el estado es 0
+      estado = 1;
+      encendidoAPP=true;
+      SerialBT.print("habilitado");
+      Serial.println("habilitado");
+      delay(100);
+    }
   }
-  if(valorbtn2==1){
+  if(valorbtn2==1 && ultimoValorBtn2 == 0){
     encendidoAPP=false;
+    if (estado == 1) { // Solo cambia si el estado es 1
+      estado = 0;
+      SerialBT.print("desabilitado");
+      Serial.println("desabilitado");
+    }
     delay(100);
   }
-    if (Serial.available()>0) {
-      inputString = Serial.readString();
+    if (SerialBT.available()>0) {
+      inputString = SerialBT.readString();
       
       if (inputString.length() > 2){
         int commaIndex = inputString.indexOf(','); // Encuentra la posición de la coma
@@ -140,7 +157,7 @@ void loop() {
 
         if (command.indexOf('i') != -1) {
           if(encendidoAPP){                 //validar que si se habilitan los botones de la app pero aki en arduino aun no dio click en el
-            //Serial.println("inicio el proceso");   //boton1 no podra inicar el proceso
+            Serial.println("inicio el proceso");   //boton1 no podra inicar el proceso
             cantvec1=0;
             posultm1=0;
             detener=false;
@@ -152,7 +169,7 @@ void loop() {
 
         } else if (command.indexOf('d') != -1) {
           if(encendidoAPP){                   //lo mismo para otro boton de la app validar que preciono el boton 1
-            //Serial.println("se detubo el proceso");
+            Serial.println("se detubo el proceso");
             cantvec1=0;
             posultm1=0;
             detener=true;
@@ -165,7 +182,9 @@ void loop() {
     if (actividadd) {
       if(cantvec1<position1 && !detener){
         actividad1(); //repetir segun el numero de veces que se envio desde la APP validando que no este detenido
-        actividad2();
+      }
+      if(cantvec2<position2 && !detener){
+        actividad2(); //repetir segun el numero de veces que se envio desde la APP validando que no este detenido
       }
     }
     if (currentMillisl1 - previousMillisLED <= ledDuration && !ledState) {
@@ -190,5 +209,7 @@ void loop() {
         ledState2 = false;
       }
     }
+  ultimoValorBtn1 = valorbtn1;
+  ultimoValorBtn2 = valorbtn2;
 }
 
